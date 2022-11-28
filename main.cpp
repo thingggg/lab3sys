@@ -19,8 +19,9 @@ std::vector<int>addresseLogique; //Adresses Logiques
 std::vector<std::bitset<16>>nombreBinaire; //Adresses Logiques
 
 struct virt {
-    int bits_page; //Adresses Logiques
-    int bits_offset; //Adresses Logiques
+    int address;
+    int bits_page;
+    int bits_offset;
 };
 void ChargerAdressesPhysiques(){
     std::fstream myfile;
@@ -34,12 +35,69 @@ void ChargerAdressesPhysiques(){
     else
         printf("Erreur a la lecture du fichier, le fichier n'existe pas.");
 }
-void display(std::vector<int> a, std::vector<int> b){
-    while(!a.empty()){
-        printf("   page:   %d offset:  %d \n", a.back(), b.back());
-        a.pop_back();
-        b.pop_back();
+void display(std::vector<virt> v){
+    while(!v.empty()){
+        printf("   page:   %d offset:  %d \n", v.back().bits_page, v.back().bits_offset);
+        v.pop_back();
     }
+}
+void debugDisplayDisk(){
+    std::fstream myfile;
+    unsigned int r, cpt =0;
+    myfile.open("../simuleDisque.bin");
+    if (myfile.is_open()){
+        while(!myfile.eof()){
+            printf( "\n page %u ", cpt);
+            for(int i =0; i<256; i++){
+                myfile.read(reinterpret_cast<char *>(&r), 1); //Lire cet emplacement
+                std::bitset<16> a = r;
+                std::string aa = a.to_string();
+                printf( "%s     ", aa.c_str());
+            }
+            cpt++;
+        }
+    }
+    else
+        printf("Erreur a la lecture du fichier, le fichier n'existe pas.");
+    myfile.close();
+}
+
+void debugDisplayDiskValues(){
+    std::fstream myfile;
+    unsigned int r, cpt =0;
+    bool exit = false;
+    myfile.open("../simuleDisque.bin");
+    if (myfile.is_open()){
+        while(!myfile.eof() && !exit){
+            printf( "\n page %u ", cpt);
+            for(int i =0; i<256; i++){
+                myfile.read(reinterpret_cast<char *>(&r), 1); //Lire cet emplacement
+                std::bitset<16> a = r;
+                std::bitset<8> d(a.to_string(), 8);
+                printf( "%i     ", (int)(d.to_ulong()));
+            }
+            cpt++;
+        }
+    }
+    else
+        printf("Erreur a la lecture du fichier, le fichier n'existe pas.");
+    myfile.close();
+}
+void debugseekAddress(int page, int offset){
+    std::fstream myfile;
+    unsigned int r, cpt =0;
+    myfile.open("../simuleDisque.bin");
+    if (myfile.is_open()){
+                myfile.seekg(page * 256 + offset, std::ios::beg); //Trouver l'endroit correspondant au byte signé dans le fichier
+                myfile.read(reinterpret_cast<char *>(&r), 1); //Lire cet emplacement
+                std::bitset<16> a = r;
+                std::string aa = a.to_string();
+                printf( "%i     ", r);
+            }
+    else    printf("Erreur a la lecture du fichier, le fichier n'existe pas.");
+
+    myfile.close();
+
 }
 int main()
 {
@@ -54,20 +112,20 @@ int main()
     for(auto i : addressePhysiques){
         nombreBinaire.emplace_back(i); // Traduire et Stocker les nombres binaires dans un vecteur
     }
-    std::bitset<16> addressMask = createMask(0,7); //Crééer un masque pour lire juste les bits 0 à 7 (offset)
-    std::bitset<16> OffsetMask = createMask(8,15); //Créer un masque pour lire juste les bits 8 à 15 (page)
+    std::bitset<32> OffsetMask = createMask(0,7); //Crééer un masque pour lire juste les bits 0 à 7 (offset)
+    std::bitset<32> PageMask = createMask(8,15); //Créer un masque pour lire juste les bits 8 à 15 (page)
 
     //Boucler sur les x adresses
     for(auto add : nombreBinaire)
     {
-        auto address = addressMask & add; //applique un masque qui dévoile la page
-        auto offset = OffsetMask & add; //applique un masque qui dévoile l'offset'
-        virt temp{(int)(address.to_ulong()),(int)(offset.to_ulong())};
+        std::string a = add.to_string();
+        std::bitset<8> page( a, 0,8 ); //applique un masque qui dévoile la page
+        std::bitset<8> offset(a, 8); //applique un masque qui dévoile l'offset'
+        virt temp{(int)(add.to_ulong()),(int)(page.to_ulong()),(int)(offset.to_ulong())};
         virtuelle.emplace_back(temp);
     }
     //Table de pages
     //Une adresse à la fois, vérifier si elle est dans la table de page
-
     for(virt v : virtuelle)
     {
         if(tablePage[v.bits_page][1] != 1)
@@ -76,14 +134,12 @@ int main()
             std::fstream myfile;
             myfile.open("../simuleDisque.bin");
             if (myfile.is_open()){
-                printf("addresseVirtuelle: %i addresse physique: %i",  v.bits_page,v.bits_offset);
-                myfile.seekg(v.bits_page * sizeof(tablePage[v.bits_page]), std::ios::beg); //Trouver l'endroit correspondant au byte signé dans le fichier
-                myfile.read(tablePage[v.bits_page],256); //Lire cet emplacement
+                myfile.seekg(v.bits_page * 256 + v.bits_offset, std::ios::beg); //Trouver l'endroit correspondant au byte signé dans le fichier
+                myfile.read(reinterpret_cast<char *>(tablePage[1]),1); //Lire cet emplacement
+                printf("addresseVirtuelle: %i addresse physique: %i valeur: %i",  v.address ,v.bits_offset, tablePage[1][0]);
             }
             else
                 printf("Erreur a la lecture du fichier, le fichier n'existe pas.");
-
-            printf( "%s", tablePage[v.bits_page]);
             //Fermer le fichier
             myfile.close();
 

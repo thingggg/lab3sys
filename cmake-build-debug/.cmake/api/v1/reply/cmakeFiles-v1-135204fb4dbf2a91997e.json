@@ -728,8 +728,8 @@
 	"kind" : "cmakeFiles",
 	"paths" : 
 	{
-		"build" : "/mnt/c/Users/oli_d/CLionProjects/Lab3_SysExp/cmake-build-debug",
-		"source" : "/mnt/c/Users/oli_d/CLionProjects/Lab3_SysExp"
+		"build" : "/mnt/c/Users/oli_d/CLionProjects/lab3sys/cmake-build-debug",
+		"source" : "/mnt/c/Users/oli_d/CLionProjects/lab3sys"
 	},
 	"version" : 
 	{
