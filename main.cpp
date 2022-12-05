@@ -14,8 +14,9 @@ Description: ***
 #include <fstream>
 #include <string>
 #include "ByteOp.h"
-std::vector<int>addressePhysiques;
-std::vector<int>addresseLogique; //Adresses Logiques
+
+std::vector<int>addresseLog;
+std::vector<int>addressePhysique; //Adresses Logiques
 std::vector<std::bitset<16>>nombreBinaire; //Adresses Logiques
 
 struct virt {
@@ -30,7 +31,7 @@ void ChargerAdressesPhysiques(){
     if (myfile.is_open())
         while (myfile >> a)
         {
-            addressePhysiques.push_back(a);
+            addresseLog.push_back(a);
         }
     else
         printf("Erreur a la lecture du fichier, le fichier n'existe pas.");
@@ -103,13 +104,13 @@ int main()
 {
     //Initialisation et déclarations
     int memPhysique[256] = {0}; //Mémoire physique
-    char tablePage[256][2]={0}; //Table de page
+    char tablePage[256]={0}; //Table de page
     std::vector<virt> virtuelle;
 
     ChargerAdressesPhysiques(); //Lire le fichier d'adresses à traduire
 
     //Traduire l'adresse physique en adresse logique
-    for(auto i : addressePhysiques){
+    for(auto i : addresseLog){
         nombreBinaire.emplace_back(i); // Traduire et Stocker les nombres binaires dans un vecteur
     }
     std::bitset<32> OffsetMask = createMask(0,7); //Crééer un masque pour lire juste les bits 0 à 7 (offset)
@@ -128,21 +129,20 @@ int main()
     //Une adresse à la fois, vérifier si elle est dans la table de page
     for(virt v : virtuelle)
     {
-        if(tablePage[v.bits_page][1] != 1)
+        if(tablePage[v.bits_page] != 1)
         {
-            std::cout << "Page non-chargée dans la table" << std::endl;
+            //std::cout << "Page non-chargée dans la table" << std::endl;
             std::fstream myfile;
             myfile.open("../simuleDisque.bin");
             if (myfile.is_open()){
                 myfile.seekg(v.bits_page * 256 + v.bits_offset, std::ios::beg); //Trouver l'endroit correspondant au byte signé dans le fichier
-                myfile.read(reinterpret_cast<char *>(tablePage[1]),1); //Lire cet emplacement
-                printf("addresseVirtuelle: %i addresse physique: %i valeur: %i",  v.address ,v.bits_offset, tablePage[1][0]);
+                myfile.read(reinterpret_cast<char *>(&tablePage[v.bits_page]),sizeof(short)); //Lire cet emplacement
+                printf("addresseVirtuelle: %i offset: %i valeur:  %i bits_page: %i",  v.address ,v.bits_offset, tablePage[v.bits_page], v.bits_page);
             }
             else
                 printf("Erreur a la lecture du fichier, le fichier n'existe pas.");
             //Fermer le fichier
             myfile.close();
-
         }
     }
 
