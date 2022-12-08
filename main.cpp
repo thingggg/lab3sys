@@ -13,6 +13,7 @@ Description: ***
 #include <bitset>
 #include <fstream>
 #include <string>
+#include <deque>
 #include "ByteOp.h"
 
 std::vector<int>addresseLog;
@@ -24,6 +25,11 @@ struct virt {
     int bits_page;
     int bits_offset;
 };
+struct TLB{
+    unsigned char page;
+    unsigned char segment;
+};
+
 void ChargerAdressesPhysiques(){
     std::fstream myfile;
     myfile.open("../addresses.txt");
@@ -36,75 +42,48 @@ void ChargerAdressesPhysiques(){
     else
         printf("Erreur a la lecture du fichier, le fichier n'existe pas.");
 }
-void display(std::vector<virt> v){
-    while(!v.empty()){
-        printf("   page:   %d offset:  %d \n", v.back().bits_page, v.back().bits_offset);
-        v.pop_back();
+std::deque<TLB> TLBuffer;
+bool checkTLB(int bitspage){
+
+    for (auto i = TLBuffer.begin(); i != TLBuffer.end(); ++i) {
+        if (i->page == bitspage) {
+            std::cout << "Page chargée dans la table" << std::endl;
+            TLBuffer.erase(i);
+            TLBuffer.emplace_back(*i);
+            return true;
+        }
     }
+    return false;
 }
-void debugDisplayDisk(){
+void pageFault(virt v){
+    char memPhysique[256] = {0}; //Mémoire physique
+    static int cpt = 0;
+    //std::cout << "Page non-chargée dans la table" << std::endl;
     std::fstream myfile;
-    unsigned int r, cpt =0;
     myfile.open("../simuleDisque.bin");
     if (myfile.is_open()){
-        while(!myfile.eof()){
-            printf( "\n page %u ", cpt);
-            for(int i =0; i<256; i++){
-                myfile.read(reinterpret_cast<char *>(&r), 1); //Lire cet emplacement
-                std::bitset<16> a = r;
-                std::string aa = a.to_string();
-                printf( "%s     ", aa.c_str());
-            }
-            cpt++;
-        }
+        myfile.seekg(v.bits_page * 256 + v.bits_offset, std::ios::beg); //Trouver l'endroit correspondant au byte signé dans le fichier
+        myfile.read(reinterpret_cast<char *>(&memPhysique[v.bits_page]),1); //Lire cet emplacement
+        //tablePage[v.bits_page][1] = 1;
+        //tablePage[v.bits_page][0] = cpt*256+v.bits_offset;
+        TLB temp{};
+        temp.page = v.bits_page;
+        TLBuffer.emplace_back(temp);
+        cpt++;
+        printf("addresseVirtuelle: %i addresse physique: %i valeur:  %i bits_page: %i \n",  v.address , 0,memPhysique[v.bits_page]);
     }
     else
         printf("Erreur a la lecture du fichier, le fichier n'existe pas.");
+    //Fermer le fichier
     myfile.close();
-}
-
-void debugDisplayDiskValues(){
-    std::fstream myfile;
-    unsigned int r, cpt =0;
-    bool exit = false;
-    myfile.open("../simuleDisque.bin");
-    if (myfile.is_open()){
-        while(!myfile.eof() && !exit){
-            printf( "\n page %u ", cpt);
-            for(int i =0; i<256; i++){
-                myfile.read(reinterpret_cast<char *>(&r), 1); //Lire cet emplacement
-                std::bitset<16> a = r;
-                std::bitset<8> d(a.to_string(), 8);
-                printf( "%i     ", (int)(d.to_ulong()));
-            }
-            cpt++;
-        }
-    }
-    else
-        printf("Erreur a la lecture du fichier, le fichier n'existe pas.");
-    myfile.close();
-}
-void debugseekAddress(int page, int offset){
-    std::fstream myfile;
-    unsigned int r, cpt =0;
-    myfile.open("../simuleDisque.bin");
-    if (myfile.is_open()){
-                myfile.seekg(page * 256 + offset, std::ios::beg); //Trouver l'endroit correspondant au byte signé dans le fichier
-                myfile.read(reinterpret_cast<char *>(&r), 1); //Lire cet emplacement
-                std::bitset<16> a = r;
-                std::string aa = a.to_string();
-                printf( "%i     ", r);
-            }
-    else    printf("Erreur a la lecture du fichier, le fichier n'existe pas.");
-
-    myfile.close();
-
 }
 int main()
 {
+    int MaxTLBSize = 16;
     //Initialisation et déclarations
-    int memPhysique[256] = {0}; //Mémoire physique
-    char tablePage[256]={0}; //Table de page
+    char memPhysique[256] = {0}; //Mémoire physique
+    unsigned short tablePage[256][2]={0}; //Table de page
+
     std::vector<virt> virtuelle;
 
     ChargerAdressesPhysiques(); //Lire le fichier d'adresses à traduire
@@ -127,23 +106,20 @@ int main()
     }
     //Table de pages
     //Une adresse à la fois, vérifier si elle est dans la table de page
+    int cpt = 0;
     for(virt v : virtuelle)
     {
-        if(tablePage[v.bits_page] != 1)
-        {
-            //std::cout << "Page non-chargée dans la table" << std::endl;
-            std::fstream myfile;
-            myfile.open("../simuleDisque.bin");
-            if (myfile.is_open()){
-                myfile.seekg(v.bits_page * 256 + v.bits_offset, std::ios::beg); //Trouver l'endroit correspondant au byte signé dans le fichier
-                myfile.read(reinterpret_cast<char *>(&tablePage[v.bits_page]),sizeof(short)); //Lire cet emplacement
-                printf("addresseVirtuelle: %i offset: %i valeur:  %i bits_page: %i",  v.address ,v.bits_offset, tablePage[v.bits_page], v.bits_page);
-            }
-            else
-                printf("Erreur a la lecture du fichier, le fichier n'existe pas.");
-            //Fermer le fichier
-            myfile.close();
+        // Est ce que la page est dans la TLB
+        if(checkTLB(v.bits_page)) continue;
+        // Est ce que la TLB est pleine
+        if(TLBuffer.size() >= MaxTLBSize){
+            TLBuffer.pop_front();
         }
+        //ajouter la page a la TLB
+        pageFault(v);
+
+
+
     }
 
 

@@ -88,6 +88,9 @@
 		<Unit filename="/mnt/c/Users/oli_d/CLionProjects/lab3sys/ByteOp.h">
 			<Option target="Lab3_SysExp"/>
 		</Unit>
+		<Unit filename="/mnt/c/Users/oli_d/CLionProjects/lab3sys/debug.h">
+			<Option target="Lab3_SysExp"/>
+		</Unit>
 		<Unit filename="/mnt/c/Users/oli_d/CLionProjects/lab3sys/main.cpp">
 			<Option target="Lab3_SysExp"/>
 		</Unit>

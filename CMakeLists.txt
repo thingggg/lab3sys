@@ -3,4 +3,4 @@ project(Lab3_SysExp)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(Lab3_SysExp main.cpp ByteOp.cpp ByteOp.h)
+add_executable(Lab3_SysExp main.cpp ByteOp.cpp ByteOp.h debug.h)
