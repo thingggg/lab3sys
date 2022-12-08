@@ -28,7 +28,7 @@ struct virt {
 };
 struct TLB{
     unsigned char page;
-    unsigned char segment;
+    unsigned char frame;
 };
 
 void ChargerAdressesPhysiques(){
@@ -47,11 +47,11 @@ void ChargerAdressesPhysiques(){
 char MemPhysique[256][256];
 std::deque<TLB> TLBuffer;
 unsigned short tablePage[256][2]={0}; //Table de page
-bool checkTLB(int bitspage){
+bool checkTLB(virt v){
 
     for (auto i = TLBuffer.begin(); i != TLBuffer.end(); ++i) {
-        if (i->page == bitspage) {
-            std::cout << "Page chargée dans la table" << std::endl;
+        if (i->page == v.bits_page) {
+            printf("addresseVirtuelle: %i addresse physique: %i valeur %i \n",  v.address , tablePage[v.bits_page][0] +v.bits_offset, MemPhysique[(tablePage[v.bits_page][0] - v.bits_offset)/256][v.bits_offset]);
             TLBuffer.erase(i);
             TLBuffer.emplace_back(*i);
             return true;
@@ -70,18 +70,18 @@ void pageFault(virt v){
         myfile.seekg(v.bits_page * 256, std::ios::beg); //Trouver l'endroit correspondant au byte signé dans le fichier
         myfile.read(MemPhysique[cpt],256); //Lire cet emplacement
         tablePage[v.bits_page][1] = 1;
-        tablePage[v.bits_page][0] = cpt;
+        tablePage[v.bits_page][0] = cpt*256;
         TLB temp{};
         temp.page = v.bits_page;
         TLBuffer.emplace_back(temp);
-        printf("addresseVirtuelle: %i addresse physique: %i valeur %i \n",  v.address , cpt*256+v.bits_offset , MemPhysique[cpt][v.bits_offset]);
+        printf("addresseVirtuelle: %i addresse physique: %i valeur %i \n",  v.address , tablePage[v.bits_page][0] +v.bits_offset , MemPhysique[cpt][v.bits_offset]);
         cpt++;
     }
     else{
         TLB temp{};
         temp.page = v.bits_page;
         TLBuffer.emplace_back(temp);
-        printf("addresseVirtuelle: %i addresse physique: %i valeur %i \n",  v.address , cpt*256+v.bits_offset , MemPhysique[tablePage[v.bits_page][0]][v.bits_offset]);
+        printf("addresseVirtuelle: %i addresse physique: %i valeur %i \n",  v.address , tablePage[v.bits_page][0] +v.bits_offset, MemPhysique[(tablePage[v.bits_page][0] - v.bits_offset)/256][v.bits_offset]);
     }
 
     myfile.close();
@@ -90,9 +90,6 @@ int main()
 {
     int MaxTLBSize = 16;
     //Initialisation et déclarations
-
-
-
     std::vector<virt> virtuelle;
 
     ChargerAdressesPhysiques(); //Lire le fichier d'adresses à traduire
@@ -101,9 +98,6 @@ int main()
     for(auto i : addresseLog){
         nombreBinaire.emplace_back(i); // Traduire et Stocker les nombres binaires dans un vecteur
     }
-    std::bitset<32> OffsetMask = createMask(0,7); //Crééer un masque pour lire juste les bits 0 à 7 (offset)
-    std::bitset<32> PageMask = createMask(8,15); //Créer un masque pour lire juste les bits 8 à 15 (page)
-
     //Boucler sur les x adresses
     for(auto add : nombreBinaire)
     {
@@ -119,7 +113,7 @@ int main()
     for(virt v : virtuelle)
     {
         // Est ce que la page est dans la TLB
-        if(checkTLB(v.bits_page)) continue;
+        if(checkTLB(v)) continue;
         // Est ce que la TLB est pleine
         if(TLBuffer.size() >= MaxTLBSize){
             TLBuffer.pop_front();
