@@ -14,6 +14,7 @@ Description: ***
 #include <fstream>
 #include <string>
 #include <deque>
+#include <map>
 #include "ByteOp.h"
 
 std::vector<int>addresseLog;
@@ -42,7 +43,10 @@ void ChargerAdressesPhysiques(){
     else
         printf("Erreur a la lecture du fichier, le fichier n'existe pas.");
 }
+//std::map<unsigned char, char [256]> MemPhysique; //Mémoire physique
+char MemPhysique[256][256];
 std::deque<TLB> TLBuffer;
+unsigned short tablePage[256][2]={0}; //Table de page
 bool checkTLB(int bitspage){
 
     for (auto i = TLBuffer.begin(); i != TLBuffer.end(); ++i) {
@@ -56,33 +60,38 @@ bool checkTLB(int bitspage){
     return false;
 }
 void pageFault(virt v){
-    char memPhysique[256] = {0}; //Mémoire physique
     static int cpt = 0;
+    char ch[256] = {};
+
     //std::cout << "Page non-chargée dans la table" << std::endl;
     std::fstream myfile;
     myfile.open("../simuleDisque.bin");
-    if (myfile.is_open()){
-        myfile.seekg(v.bits_page * 256 + v.bits_offset, std::ios::beg); //Trouver l'endroit correspondant au byte signé dans le fichier
-        myfile.read(reinterpret_cast<char *>(&memPhysique[v.bits_page]),1); //Lire cet emplacement
-        //tablePage[v.bits_page][1] = 1;
-        //tablePage[v.bits_page][0] = cpt*256+v.bits_offset;
+    if (tablePage[v.bits_page][1] != 1){
+        myfile.seekg(v.bits_page * 256, std::ios::beg); //Trouver l'endroit correspondant au byte signé dans le fichier
+        myfile.read(MemPhysique[cpt],256); //Lire cet emplacement
+        tablePage[v.bits_page][1] = 1;
+        tablePage[v.bits_page][0] = cpt;
         TLB temp{};
         temp.page = v.bits_page;
         TLBuffer.emplace_back(temp);
+        printf("addresseVirtuelle: %i addresse physique: %i valeur %i \n",  v.address , cpt*256+v.bits_offset , MemPhysique[cpt][v.bits_offset]);
         cpt++;
-        printf("addresseVirtuelle: %i addresse physique: %i valeur:  %i bits_page: %i \n",  v.address , 0,memPhysique[v.bits_page]);
     }
-    else
-        printf("Erreur a la lecture du fichier, le fichier n'existe pas.");
-    //Fermer le fichier
+    else{
+        TLB temp{};
+        temp.page = v.bits_page;
+        TLBuffer.emplace_back(temp);
+        printf("addresseVirtuelle: %i addresse physique: %i valeur %i \n",  v.address , cpt*256+v.bits_offset , MemPhysique[tablePage[v.bits_page][0]][v.bits_offset]);
+    }
+
     myfile.close();
 }
 int main()
 {
     int MaxTLBSize = 16;
     //Initialisation et déclarations
-    char memPhysique[256] = {0}; //Mémoire physique
-    unsigned short tablePage[256][2]={0}; //Table de page
+
+
 
     std::vector<virt> virtuelle;
 
