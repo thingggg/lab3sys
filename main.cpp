@@ -56,7 +56,7 @@ bool checkTLB(virt v){
     for (auto i = TLBuffer.begin(); i != TLBuffer.end(); ++i) {
         if (i->page == v.bits_page) {
             ++PageAlreadyInTlb;
-            printf("addresseVirtuelle: %i addresse physique: %i valeur %i \n",  v.address , tablePage[v.bits_page][0] +v.bits_offset, MemPhysique[(tablePage[v.bits_page][0] - v.bits_offset)/256][v.bits_offset]);
+            printf("addresseVirtuelle: %i addresse physique: %i valeur %i \n",  v.address , i->page + v.bits_offset, MemPhysique[i->frame][v.bits_offset]);
             TLBuffer.emplace_back(*i);
             TLBuffer.erase(i);
             return true;
@@ -78,6 +78,7 @@ void pageFault(virt v){
         tablePage[v.bits_page][0] = cpt*256;
         TLB temp{};
         temp.page = v.bits_page;
+        temp.frame = cpt;
         TLBuffer.emplace_back(temp);
         printf("addresseVirtuelle: %i addresse physique: %i valeur %i \n",  v.address , tablePage[v.bits_page][0] +v.bits_offset , MemPhysique[cpt][v.bits_offset]);
         cpt++;
