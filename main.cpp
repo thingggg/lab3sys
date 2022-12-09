@@ -57,8 +57,8 @@ bool checkTLB(virt v){
         if (i->page == v.bits_page) {
             ++PageAlreadyInTlb;
             printf("addresseVirtuelle: %i addresse physique: %i valeur %i \n",  v.address , tablePage[v.bits_page][0] +v.bits_offset, MemPhysique[(tablePage[v.bits_page][0] - v.bits_offset)/256][v.bits_offset]);
-            TLBuffer.erase(i);
             TLBuffer.emplace_back(*i);
+            TLBuffer.erase(i);
             return true;
         }
     }
