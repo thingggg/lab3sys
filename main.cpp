@@ -43,14 +43,19 @@ void ChargerAdressesPhysiques(){
     else
         printf("Erreur a la lecture du fichier, le fichier n'existe pas.");
 }
+
 //std::map<unsigned char, char [256]> MemPhysique; //Mémoire physique
 char MemPhysique[256][256];
 std::deque<TLB> TLBuffer;
 unsigned short tablePage[256][2]={0}; //Table de page
+double PageRequest = 0;
+double PageFault = 0;
+double PageAlreadyInTlb = 0;
 bool checkTLB(virt v){
 
     for (auto i = TLBuffer.begin(); i != TLBuffer.end(); ++i) {
         if (i->page == v.bits_page) {
+            ++PageAlreadyInTlb;
             printf("addresseVirtuelle: %i addresse physique: %i valeur %i \n",  v.address , tablePage[v.bits_page][0] +v.bits_offset, MemPhysique[(tablePage[v.bits_page][0] - v.bits_offset)/256][v.bits_offset]);
             TLBuffer.erase(i);
             TLBuffer.emplace_back(*i);
@@ -76,6 +81,7 @@ void pageFault(virt v){
         TLBuffer.emplace_back(temp);
         printf("addresseVirtuelle: %i addresse physique: %i valeur %i \n",  v.address , tablePage[v.bits_page][0] +v.bits_offset , MemPhysique[cpt][v.bits_offset]);
         cpt++;
+        PageFault++;
     }
     else{
         TLB temp{};
@@ -112,6 +118,7 @@ int main()
     int cpt = 0;
     for(virt v : virtuelle)
     {
+        PageRequest++;
         // Est ce que la page est dans la TLB
         if(checkTLB(v)) continue;
         // Est ce que la TLB est pleine
@@ -120,27 +127,9 @@ int main()
         }
         //ajouter la page a la TLB
         pageFault(v);
-
-
-
     }
-
-
-    //Calcul de l'adresse physique
-//    for(int i=0;i<bits_page.size();i++)
-//    {
-//        //Construire en bits et traduire en décimal
-//
-//        //Obtenir la valeur du byte signé
-//        int b = fct_SignedByte(bits_page[i],bits_offset[i]);
-//
-//    }
-
-
-
+    printf("Page fault to request: %f%%      page Already in TLB: %f%%     ", PageFault/10, PageAlreadyInTlb/10);
     //Ecrire le fichier de sortie
-
-
 
     return 0;
 
